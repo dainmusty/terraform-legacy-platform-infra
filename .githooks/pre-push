@@ -1,0 +1,29 @@
+#!/bin/bash
+#
+# pre-push hook: blocks pushing new branches that don't match the
+# WANP-XXXX feature branch naming convention.
+#
+# Install with: bash scripts/install-hooks.sh
+
+SHAPE_PATTERN='^feature/WANP-[0-9]{4}-[a-z0-9]+(-[a-z0-9]+)*$'
+
+while read local_ref local_sha remote_ref remote_sha; do
+  BRANCH=$(echo "$remote_ref" | sed 's#refs/heads/##')
+
+  if [[ "$BRANCH" != feature/* ]]; then
+    continue
+  fi
+
+  if ! echo "$BRANCH" | grep -qE "$SHAPE_PATTERN"; then
+    echo ""
+    echo "=================================================================="
+    echo "PUSH BLOCKED: branch '$BRANCH' violates the naming policy."
+    echo "=================================================================="
+    echo "Expected shape: feature/WANP-<4-digit-ticket>-<description>"
+    echo "Example:        feature/WANP-0101-add-vpc-module"
+    echo "=================================================================="
+    exit 1
+  fi
+done
+
+exit 0

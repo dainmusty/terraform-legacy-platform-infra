@@ -1,0 +1,5 @@
+bucket         = "blueeagle-tfstate-platform"
+key            = "tenants/partners/terraform.tfstate"
+region         = "eu-west-2"
+dynamodb_table = "blueeagle-tfstate-lock-platform"
+encrypt        = true

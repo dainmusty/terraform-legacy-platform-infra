@@ -1,0 +1,146 @@
+# reference-solution/.gitlab-ci.yml
+#
+# This is the direct fix for technical-debt-register item #6 (no
+# CI/CD, manual applies from individual laptops) AND the concrete
+# implementation of the test strategy this exercise asks you to
+# design: functional, non-functional, and operational gates, each
+# mapped to a specific stage below rather than left as an abstract
+# concept.
+#
+# Runs once per tenant (retail, logistics, partners) via a matrix —
+# one bad tenant's plan failing doesn't block the other two from being
+# reviewed independently.
+#
+# Required CI/CD variables (masked + protected):
+#   AWS credentials however your other Terraform repos in this series
+#     authenticate
+#   INFRACOST_API_KEY   - free tier is sufficient; see infracost.io
+#   TRAINEE_NAME          - used only for state bucket namespacing if you're
+#                            running this against your own sandbox rather
+#                            than the shared platform account
+
+stages:
+  - functional-static
+  - functional-plan
+  - non-functional
+  - operational
+  - apply
+
+.tenant_matrix: &tenant_matrix
+  parallel:
+    matrix:
+      - TENANT: [retail, logistics, partners]
+
+# ---------------------------------------------------------------------------
+# FUNCTIONAL TESTS, part 1: static correctness. Catches syntax errors,
+# unpinned providers, and known-bad patterns (the exact anti-patterns
+# in the legacy repo this exercise starts from) before anything is
+# ever planned against real infrastructure.
+# ---------------------------------------------------------------------------
+fmt-validate:
+  stage: functional-static
+  image: hashicorp/terraform:1.9
+  <<: *tenant_matrix
+  script:
+    - cd reference-solution/tenants/${TENANT}
+    - terraform init -backend=false
+    - terraform fmt -check -recursive ../../
+    - terraform validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+static-analysis:
+  stage: functional-static
+  image: bridgecrew/checkov:3.2.147
+  <<: *tenant_matrix
+  script:
+    - checkov -d reference-solution/tenants/${TENANT} --compact --quiet
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# FUNCTIONAL TESTS, part 2: does the plan do what we expect? A human
+# reviews this plan on the Merge Request — this stage produces the
+# artifact, it doesn't replace the review.
+# ---------------------------------------------------------------------------
+plan:
+  stage: functional-plan
+  image: hashicorp/terraform:1.9
+  <<: *tenant_matrix
+  needs: ["fmt-validate", "static-analysis"]
+  script:
+    - cd reference-solution/tenants/${TENANT}
+    - terraform init -backend-config=backend.hcl
+    - terraform plan -out=tfplan
+  artifacts:
+    paths:
+      - reference-solution/tenants/${TENANT}/tfplan
+    expire_in: 1 day
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# NON-FUNCTIONAL TESTS: cost and security posture, not just "does it
+# apply." A plan that's functionally correct but doubles the monthly
+# bill, or that reintroduces a 0.0.0.0/0 rule, should still fail here.
+# ---------------------------------------------------------------------------
+cost-check:
+  stage: non-functional
+  image: infracost/infracost:ci-0.10
+  <<: *tenant_matrix
+  needs: ["plan"]
+  script:
+    - infracost breakdown --path reference-solution/tenants/${TENANT}/tfplan --format table
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+security-posture-check:
+  stage: non-functional
+  image: aquasec/tfsec:v1.28.6
+  <<: *tenant_matrix
+  script:
+    - tfsec reference-solution/tenants/${TENANT} --minimum-severity HIGH
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# OPERATIONAL TESTS: does the platform behave the way the support
+# runbook (docs/support-runbook.md) assumes it does? Scheduled
+# drift-detection is the automated half of this; the manual failure-
+# injection drill described in the exercise document is the other
+# half and can't be a CI job by its nature.
+# ---------------------------------------------------------------------------
+drift-detection:
+  stage: operational
+  image: hashicorp/terraform:1.9
+  <<: *tenant_matrix
+  script:
+    - cd reference-solution/tenants/${TENANT}
+    - terraform init -backend-config=backend.hcl
+    - terraform plan -detailed-exitcode -out=drift.tfplan
+  rules:
+    # Scheduled pipelines only — see Settings > CI/CD > Schedules.
+    # Exit code 2 from -detailed-exitcode means real drift was found;
+    # configure the schedule's notification settings so that failure
+    # actually pages someone rather than sitting unread in a pipeline
+    # history nobody checks.
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+# ---------------------------------------------------------------------------
+apply:
+  stage: apply
+  image: hashicorp/terraform:1.9
+  <<: *tenant_matrix
+  needs: ["plan", "cost-check", "security-posture-check"]
+  script:
+    - cd reference-solution/tenants/${TENANT}
+    - terraform init -backend-config=backend.hcl
+    - terraform apply -input=false tfplan
+  when: manual
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'

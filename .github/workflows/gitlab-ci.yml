@@ -1,0 +1,379 @@
+# reference-solution/.gitlab-ci.yml
+#
+# This is the direct fix for technical-debt-register item #6 (no
+# CI/CD, manual applies from individual laptops) AND the concrete
+# implementation of the test strategy this exercise asks you to
+# design: functional, non-functional, and operational gates, each
+# mapped to a specific stage below rather than left as an abstract
+# concept.
+#
+# Runs once per tenant (retail, logistics, partners) via a matrix —
+# one bad tenant's plan failing doesn't block the other two from being
+# reviewed independently.
+#
+# Required CI/CD variables (masked + protected):
+#   AWS credentials however your other Terraform repos in this series
+#     authenticate
+#   INFRACOST_API_KEY   - free tier is sufficient; see infracost.io
+#   TRAINEE_NAME          - used only for state bucket namespacing if you're
+#                            running this against your own sandbox rather
+#                            than the shared platform account
+
+# .github/workflows/terraform.yml
+
+name: Terraform CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+  schedule:
+    # Runs every day at 02:00 UTC
+    - cron: "0 2 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.9.0"
+  INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
+jobs:
+
+  # ============================================================
+  # FUNCTIONAL TESTS — STATIC CORRECTNESS
+  # ============================================================
+
+  fmt-validate:
+    name: Terraform Format & Validate (${{ matrix.tenant }})
+
+    if: github.event_name == 'pull_request' ||
+        github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    defaults:
+      run:
+        working-directory: reference-solution/tenants/${{ matrix.tenant }}
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+
+      - name: Terraform Format Check
+        working-directory: reference-solution
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+
+  static-analysis:
+    name: Checkov (${{ matrix.tenant }})
+
+    if: github.event_name == 'pull_request' ||
+        github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: reference-solution/tenants/${{ matrix.tenant }}
+          quiet: true
+          compact: true
+
+
+  # ============================================================
+  # FUNCTIONAL TESTS — TERRAFORM PLAN
+  # ============================================================
+
+  plan:
+    name: Terraform Plan (${{ matrix.tenant }})
+
+    needs:
+      - fmt-validate
+      - static-analysis
+
+    if: github.event_name == 'pull_request' ||
+        github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    defaults:
+      run:
+        working-directory: reference-solution/tenants/${{ matrix.tenant }}
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ----------------------------------------------------------
+      # AWS authentication using static access keys for test pipeline
+      # ----------------------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.tenant }}
+          path: reference-solution/tenants/${{ matrix.tenant }}/tfplan
+          retention-days: 1
+
+
+  # ============================================================
+  # NON-FUNCTIONAL TEST — COST
+  # ============================================================
+
+  cost-check:
+    name: Infracost (${{ matrix.tenant }})
+
+    needs:
+      - plan
+
+    if: github.event_name == 'pull_request' ||
+        github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.tenant }}
+          path: reference-solution/tenants/${{ matrix.tenant }}
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Run Infracost
+        run: |
+          infracost breakdown \
+            --path reference-solution/tenants/${{ matrix.tenant }}/tfplan \
+            --format table
+
+
+  # ============================================================
+  # NON-FUNCTIONAL TEST — SECURITY
+  # ============================================================
+
+  security-posture-check:
+    name: tfsec (${{ matrix.tenant }})
+
+    needs:
+      - plan
+
+    if: github.event_name == 'pull_request' ||
+        github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: reference-solution/tenants/${{ matrix.tenant }}
+          additional_args: --minimum-severity HIGH
+
+
+  # ============================================================
+  # OPERATIONAL TEST — DRIFT DETECTION
+  # ============================================================
+
+  drift-detection:
+    name: Terraform Drift Detection (${{ matrix.tenant }})
+
+    if: github.event_name == 'schedule'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    defaults:
+      run:
+        working-directory: reference-solution/tenants/${{ matrix.tenant }}
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Detect Infrastructure Drift
+        run: |
+          terraform plan \
+            -detailed-exitcode \
+            -out=drift.tfplan
+
+
+  # ============================================================
+  # APPLY
+  # ============================================================
+
+  apply:
+    name: Terraform Apply (${{ matrix.tenant }})
+
+    needs:
+      - plan
+      - cost-check
+      - security-posture-check
+
+    if: github.ref == 'refs/heads/main' &&
+        github.event_name == 'push'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - retail
+          - logistics
+          - partners
+
+    environment:
+      name: production
+
+    defaults:
+      run:
+        working-directory: reference-solution/tenants/${{ matrix.tenant }}
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.tenant }}
+          path: reference-solution/tenants/${{ matrix.tenant }}
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
