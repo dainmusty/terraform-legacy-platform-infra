@@ -377,4 +377,4 @@ jobs:
           path: reference-solution/tenants/${{ matrix.tenant }}
 
       - name: Terraform Destroy
-        run: terraform destroy -auto-approve
+        run: terraform destroy -input=false tfplan
