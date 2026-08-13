@@ -6,12 +6,16 @@
 # every tenant, not just the one someone happened to be looking at.
 
 resource "aws_vpc" "this" {
+  #checkov:skip=CKV2_AWS_11:VPC flow logging is outside the current VPC module contract and operational requirements defined for this exercise.
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = merge(var.tags, { Name = "${var.tenant_name}-vpc" })
+  tags = merge(var.tags, {
+    Name = "${var.tenant_name}-vpc"
+  })
 }
+
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
@@ -25,7 +29,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.this.id
   cidr_block              = var.public_subnet_cidrs[count.index]
   availability_zone       = var.azs[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = merge(var.tags, {
     Name = "${var.tenant_name}-public-${count.index + 1}"

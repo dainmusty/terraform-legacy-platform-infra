@@ -5,12 +5,10 @@
 # entirely on the account-level default, unverified for years.
 #
 # This module makes all three explicit and mandatory for every tenant.
-
-#checkov:skip=CKV2_AWS_62:S3 event notifications are not required by the blueEagle tenant platform workload or operational model.
-#checkov:skip=CKV_AWS_18:S3 server access logging is outside the current exercise scope; CloudTrail and platform monitoring provide the defined audit/operational controls.
-#checkov:skip=CKV_AWS_144:Cross-region S3 replication is not part of the current tenant module contract; disaster recovery is validated through the documented recovery model and operational testing.
-#checkov:skip=CKV_AWS_145:S3 encryption at rest is explicitly enabled using SSE-S3; customer-managed KMS encryption is outside the current exercise requirements.
-
+#checkov:skip=CKV2_AWS_62:S3 event notifications are outside the current tenant platform contract.
+#checkov:skip=CKV_AWS_18:S3 server access logging is outside the current exercise scope; platform audit controls are handled separately.
+#checkov:skip=CKV_AWS_144:Cross-region replication is outside the current tenant module contract and is not required by the exercise.
+#checkov:skip=CKV_AWS_145:The tenant bucket explicitly enables SSE-S3 encryption; customer-managed KMS encryption is outside the current exercise requirements.
 resource "aws_s3_bucket" "this" {
   bucket = "${var.bucket_name_prefix}-${var.tenant_name}"
 
@@ -18,6 +16,7 @@ resource "aws_s3_bucket" "this" {
     Name = "${var.tenant_name}-bucket"
   })
 }
+
 
 resource "aws_s3_bucket_versioning" "this" {
   bucket = aws_s3_bucket.this.id
@@ -54,6 +53,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
     status = "Enabled"
 
     filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
 
     noncurrent_version_expiration {
       noncurrent_days = 90
