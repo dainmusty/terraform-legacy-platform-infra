@@ -5,9 +5,10 @@
 # entirely on the account-level default, unverified for years.
 #
 # This module makes all three explicit and mandatory for every tenant.
-#checkov:skip=CKV2_AWS_62:S3 event notifications are outside the current tenant platform contract.
-#checkov:skip=CKV_AWS_18:S3 server access logging is outside the current exercise scope; platform audit controls are handled separately.
-#checkov:skip=CKV_AWS_144:Cross-region replication is outside the current tenant module contract and is not required by the exercise.
+
+#checkov:skip=CKV_AWS_18:S3 server access logging is outside the current exercise scope; platform audit and operational controls are handled separately.
+#checkov:skip=CKV2_AWS_62:S3 event notifications are outside the current tenant platform module contract.
+#checkov:skip=CKV_AWS_144:Cross-region S3 replication is outside the current tenant module contract and is not required by this exercise.
 #checkov:skip=CKV_AWS_145:The tenant bucket explicitly enables SSE-S3 encryption; customer-managed KMS encryption is outside the current exercise requirements.
 resource "aws_s3_bucket" "this" {
   bucket = "${var.bucket_name_prefix}-${var.tenant_name}"

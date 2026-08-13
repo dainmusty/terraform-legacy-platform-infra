@@ -57,13 +57,16 @@ resource "aws_route_table_association" "public" {
 # variable-supplied CIDR list (your office/VPN range), never the
 # whole internet, and is entirely absent unless a tenant actually
 # declares admin_access_cidrs.
-#checkov:skip=CKV_AWS_24:Admin SSH access is optional and restricted by the admin_access_cidrs variable; Terraform validation rejects 0.0.0.0/0.
-#checkov:skip=CKV_AWS_382:Administrative SG requires outbound connectivity for approved management operations; ingress is explicitly restricted by admin_access_cidrs.
-#checkov:skip=CKV2_AWS_5:This optional administrative security group is created only when admin_access_cidrs is supplied; workload security groups are managed by the workload modules.
+
+
+#checkov:skip=CKV_AWS_24:Administrative SSH access is optional and controlled by the tenant admin_access_cidrs input; unrestricted 0.0.0.0/0 access is not part of the tenant configuration.
+#checkov:skip=CKV_AWS_382:Administrative security group requires outbound connectivity for approved management operations; restricting egress is outside the current exercise scope.
+#checkov:skip=CKV2_AWS_5:This optional administrative security group is intentionally created independently of workload resources; EC2 and ALB modules are outside the current exercise scope.
 resource "aws_security_group" "admin_access" {
+  description = "Administrative SSH access for ${var.tenant_name}"
+
   count       = length(var.admin_access_cidrs) > 0 ? 1 : 0
   name_prefix = "${var.tenant_name}-admin-"
-  description = "Administrative SSH access for ${var.tenant_name}"
   vpc_id      = aws_vpc.this.id
 
   ingress {
@@ -75,7 +78,7 @@ resource "aws_security_group" "admin_access" {
   }
 
   egress {
-    description = "Allow outbound management traffic"
+    description = "Outbound connectivity for administrative operations"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -86,7 +89,6 @@ resource "aws_security_group" "admin_access" {
     Name = "${var.tenant_name}-admin-sg"
   })
 }
-
 
 resource "aws_default_security_group" "this" {
   vpc_id = aws_vpc.this.id
