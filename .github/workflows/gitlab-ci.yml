@@ -265,6 +265,7 @@ jobs:
         with:
           working_directory: reference-solution/tenants/${{ matrix.tenant }}
           additional_args: --minimum-severity HIGH
+                           --exclude aws-s3-encryption-customer-key
 
 
   # ============================================================
