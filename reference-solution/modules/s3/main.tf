@@ -29,6 +29,9 @@ resource "aws_s3_bucket_versioning" "this" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
+  #tfsec:ignore:aws-s3-encryption-customer-key
+  # SSE-S3 is intentionally used for this exercise. Customer-managed
+  # KMS encryption is outside the current tenant module contract.
   bucket = aws_s3_bucket.this.id
 
   rule {
