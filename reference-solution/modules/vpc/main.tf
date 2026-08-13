@@ -18,16 +18,6 @@ resource "aws_internet_gateway" "this" {
   tags   = merge(var.tags, { Name = "${var.tenant_name}-igw" })
 }
 
-#checkov:skip=CKV2_AWS_130:This optional administrative
-resource "aws_subnet" "public" {
-  count                   = length(var.public_subnet_cidrs)
-  vpc_id                  = aws_vpc.this.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = var.azs[count.index]
-  map_public_ip_on_launch = true
-
-  tags = merge(var.tags, { Name = "${var.tenant_name}-public-${count.index + 1}" })
-}
 
 #checkov:skip=CKV_AWS_130:Public subnets are intentional in the current blueEagle tenant network design; workload networking is outside the current remediation scope.
 resource "aws_subnet" "public" {
