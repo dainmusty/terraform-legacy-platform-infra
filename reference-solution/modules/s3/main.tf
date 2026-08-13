@@ -10,6 +10,7 @@
 #checkov:skip=CKV_AWS_18:S3 server access logging is outside the current exercise scope; CloudTrail and platform monitoring provide the defined audit/operational controls.
 #checkov:skip=CKV_AWS_144:Cross-region S3 replication is not part of the current tenant module contract; disaster recovery is validated through the documented recovery model and operational testing.
 #checkov:skip=CKV_AWS_145:S3 encryption at rest is explicitly enabled using SSE-S3; customer-managed KMS encryption is outside the current exercise requirements.
+
 resource "aws_s3_bucket" "this" {
   bucket = "${var.bucket_name_prefix}-${var.tenant_name}"
 
@@ -51,6 +52,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   rule {
     id     = "manage-object-lifecycle"
     status = "Enabled"
+
+    filter {}
 
     noncurrent_version_expiration {
       noncurrent_days = 90
