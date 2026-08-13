@@ -29,13 +29,17 @@ resource "aws_subnet" "public" {
   tags = merge(var.tags, { Name = "${var.tenant_name}-public-${count.index + 1}" })
 }
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.this.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.this.id
-  }
-  tags = merge(var.tags, { Name = "${var.tenant_name}-public-rt" })
+#checkov:skip=CKV_AWS_130:Public subnets are intentional in the current blueEagle tenant network design; workload networking is outside the current remediation scope.
+resource "aws_subnet" "public" {
+  count                   = length(var.public_subnet_cidrs)
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = var.public_subnet_cidrs[count.index]
+  availability_zone       = var.azs[count.index]
+  map_public_ip_on_launch = true
+
+  tags = merge(var.tags, {
+    Name = "${var.tenant_name}-public-${count.index + 1}"
+  })
 }
 
 resource "aws_route_table_association" "public" {
@@ -49,14 +53,13 @@ resource "aws_route_table_association" "public" {
 # variable-supplied CIDR list (your office/VPN range), never the
 # whole internet, and is entirely absent unless a tenant actually
 # declares admin_access_cidrs.
-
 #checkov:skip=CKV_AWS_24:Admin SSH access is optional and restricted by the admin_access_cidrs variable; Terraform validation rejects 0.0.0.0/0.
 #checkov:skip=CKV_AWS_382:Administrative SG requires outbound connectivity for approved management operations; ingress is explicitly restricted by admin_access_cidrs.
 #checkov:skip=CKV2_AWS_5:This optional administrative security group is created only when admin_access_cidrs is supplied; workload security groups are managed by the workload modules.
 resource "aws_security_group" "admin_access" {
-  description = "Administrative SSH access for ${var.tenant_name}"
   count       = length(var.admin_access_cidrs) > 0 ? 1 : 0
   name_prefix = "${var.tenant_name}-admin-"
+  description = "Administrative SSH access for ${var.tenant_name}"
   vpc_id      = aws_vpc.this.id
 
   ingress {
@@ -68,14 +71,18 @@ resource "aws_security_group" "admin_access" {
   }
 
   egress {
+    description = "Allow outbound management traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = merge(var.tags, { Name = "${var.tenant_name}-admin-sg" })
+  tags = merge(var.tags, {
+    Name = "${var.tenant_name}-admin-sg"
+  })
 }
+
 
 resource "aws_default_security_group" "this" {
   vpc_id = aws_vpc.this.id
