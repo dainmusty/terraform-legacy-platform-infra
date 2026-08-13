@@ -59,12 +59,12 @@ resource "aws_route_table_association" "public" {
 # declares admin_access_cidrs.
 
 
-#checkov:skip=CKV_AWS_24:Administrative SSH access is optional and controlled by the tenant admin_access_cidrs input; unrestricted 0.0.0.0/0 access is not part of the tenant configuration.
-#checkov:skip=CKV_AWS_382:Administrative security group requires outbound connectivity for approved management operations; restricting egress is outside the current exercise scope.
-#checkov:skip=CKV2_AWS_5:This optional administrative security group is intentionally created independently of workload resources; EC2 and ALB modules are outside the current exercise scope.
 resource "aws_security_group" "admin_access" {
-  description = "Administrative SSH access for ${var.tenant_name}"
+  #checkov:skip=CKV_AWS_24:Administrative SSH access is restricted through admin_access_cidrs
+  #checkov:skip=CKV_AWS_382:Administrative SG requires outbound connectivity for approved management operations
+  #checkov:skip=CKV2_AWS_5:Administrative SG is optional and is not attached to a workload resource by this module
 
+  description = "Administrative SSH access for ${var.tenant_name}"
   count       = length(var.admin_access_cidrs) > 0 ? 1 : 0
   name_prefix = "${var.tenant_name}-admin-"
   vpc_id      = aws_vpc.this.id
@@ -78,7 +78,7 @@ resource "aws_security_group" "admin_access" {
   }
 
   egress {
-    description = "Outbound connectivity for administrative operations"
+    description = "Required outbound connectivity for administrative operations"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
