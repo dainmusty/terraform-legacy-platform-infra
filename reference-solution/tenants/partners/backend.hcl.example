@@ -1,5 +1,7 @@
+# Replace <tenant> with the tenant whose state is being managed.
+
 bucket         = "blueeagle-tfstate-platform"
-key            = "tenants/partners/terraform.tfstate"
+key            = "tenants/<tenant>/terraform.tfstate"
 region         = "eu-west-2"
 dynamodb_table = "blueeagle-tfstate-lock-platform"
 encrypt        = true

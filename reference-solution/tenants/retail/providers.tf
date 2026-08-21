@@ -6,7 +6,7 @@ terraform {
       version = "~> 5.60" # same pinned major/minor across all three tenants now — debt item #5
     }
   }
-  #backend "s3" {} # partial — see backend.hcl.example; per-tenant state, debt item #1
+  backend "s3" {} # partial — see backend.hcl.example; per-tenant state, debt item #1
 }
 
 provider "aws" {
