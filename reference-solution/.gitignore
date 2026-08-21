@@ -1,5 +1,5 @@
 .terraform/
-.terraform.lock.hcl
+#.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 crash.log
@@ -12,6 +12,6 @@ drift.tfplan
 *.tfvars.json
 !*.tfvars.example
 
-backend.hcl
+#backend.hcl
 
 .DS_Store
