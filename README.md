@@ -86,7 +86,7 @@ own configuration and state.
 
 ## CI/CD
 
-
+```
 The GitLab pipeline provides quality gates before infrastructure deployment.
 
 | Stage             | Purpose                                       |
@@ -97,6 +97,7 @@ The GitLab pipeline provides quality gates before infrastructure deployment.
 | Operational       | Scheduled drift detection                     |
 | Apply             | Controlled manual deployment                  |
 
+```
 
 The pipeline uses a tenant matrix so the same controls are applied consistently
 to Retail, Logistics, and Partners.
