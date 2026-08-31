@@ -2,7 +2,7 @@
 
 > Terraform-based remediation of a legacy AWS multi-tenant platform supporting Retail, Logistics, and Partners.
 
-![Architecture Diagram](blueeagle-legacy-platform-infra.png)
+![Architecture Diagram](architecture/blueeagle-legacy-platform-infra.png)
 
 ## Table of Contents
 
