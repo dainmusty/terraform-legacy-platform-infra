@@ -173,6 +173,8 @@ model.
 
 Detailed project information is intentionally kept in docs/ rather than
 making the root README unnecessarily large.
+
+
 | Document                                                   | Purpose                                       |
 | ---------------------------------------------------------- | --------------------------------------------- |
 | [Technical Debt Register](reference-solution/docs/technical-debt-register.md) | Findings, risks, priorities, and remediation  |
