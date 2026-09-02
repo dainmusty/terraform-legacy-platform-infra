@@ -144,6 +144,7 @@ model.
 
 ## Repository Structure
 
+```
 .
 ├── bootstrap/
 ├── docs/
@@ -168,6 +169,7 @@ model.
 ├── blueeagle-legacy-platform-infra.png
 └── README.md
 
+```
 ## Documentation
 
 Detailed project information is intentionally kept in docs/ rather than
