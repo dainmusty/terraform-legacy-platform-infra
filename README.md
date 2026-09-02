@@ -145,7 +145,6 @@ model.
 ## Repository Structure
 
 ```
-.
 ├── bootstrap/
 ├── docs/
 │   ├── technical-debt-register.md
@@ -232,14 +231,15 @@ multi-tenant platform.
 
 The resulting approach provides:
 
-Consistent tenant architecture
-Better tenant isolation
-Stronger security controls
-Automated infrastructure testing
-Cost visibility
-Drift detection
-Controlled deployments
-Documented operational procedures
+- Consistent tenant architecture
+- Better tenant isolation
+- Stronger security controls
+- Automated infrastructure testing
+- Cost visibility
+- Drift detection
+- Controlled deployments
+- Documented operational procedures
+
 
 The goal is not simply to make Terraform pass.
 
