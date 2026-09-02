@@ -175,9 +175,9 @@ Detailed project information is intentionally kept in docs/ rather than
 making the root README unnecessarily large.
 | Document                                                   | Purpose                                       |
 | ---------------------------------------------------------- | --------------------------------------------- |
-| [Technical Debt Register](docs/technical-debt-register.md) | Findings, risks, priorities, and remediation  |
-| [Support Runbook](docs/support-runbook.md)                 | Support, escalation, monitoring, and recovery |
-| [Presentation Outline](docs/presentation-outline.md)       | Executive presentation and Q&A preparation    |
+| [Technical Debt Register](reference-solution/docs/technical-debt-register.md) | Findings, risks, priorities, and remediation  |
+| [Support Runbook](reference-solution/docs/support-runbook.md)                 | Support, escalation, monitoring, and recovery |
+| [Presentation Outline](reference-solution/docs/presentation-outline.md)       | Executive presentation and Q&A preparation    |
 
 
 ## Getting Started
