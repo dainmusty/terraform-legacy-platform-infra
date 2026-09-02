@@ -183,44 +183,45 @@ making the root README unnecessarily large.
 ## Getting Started
 
 Prerequisites
-Terraform
-AWS credentials
-AWS remote state backend
-Git
-GitLab access
-Infracost API key
+
+- Terraform
+- AWS credentials
+- AWS remote state backend
+- Git
+- GitLab access
+- Infracost API key
 
 Install Git Hooks
 
-bash scripts/install-hooks.sh
+- bash scripts/install-hooks.sh
 
 Initialize a Tenant
 
-cd reference-solution/tenants/retail
-terraform init
+- cd reference-solution/tenants/retail
+- terraform init
 
 Validate
 
-terraform fmt -check -recursive
-terraform validate
+- terraform fmt -check -recursive
+- terraform validate
 
 Planning and applying infrastructure should normally be performed through the
 CI/CD pipeline rather than individual developer machines.
 
 ## Branch and Commit Convention
 
-Changes should reference the associated ClickUp work item.
+* Changes should reference the associated ClickUp work item.
 
-Branch
+1. Branch
 feature/WANP-11XX-short-description
 
-Commit
+2. Commit
 WANP-11XX: imperative description
 
-Merge Request
+3. Merge Request
 WANP-11XX: Title
 
-Local Git hooks provide an early check, while CI/CD provides the authoritative
+* Local Git hooks provide an early check, while CI/CD provides the authoritative
 quality gate.
 
 ## Outcome
